@@ -1,0 +1,16 @@
+/*
+ * Melodix Project Original (2026)
+ * Licensed Under GPL-3.0 | see git history for contributors
+ */
+
+
+
+package com.melodix.music.models
+
+import com.melodix.music.innertube.models.YTItem
+import com.melodix.music.db.entities.LocalItem
+
+data class SimilarRecommendation(
+    val title: LocalItem,
+    val items: List<YTItem>,
+)
