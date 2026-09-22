@@ -100,6 +100,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (System.getenv("STORE_PASSWORD") != null && file("keystore/release.keystore").exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                println("WARNING: keystore or credentials missing - release will be UNSIGNED")
+            }
         }
         debug {
             isDebuggable = true
