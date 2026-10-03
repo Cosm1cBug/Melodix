@@ -29,6 +29,17 @@ vibrant accents, Spotify integration and lossless playback support.
 - 🎨 Dynamic theming, custom palettes and pure-black mode
 - 🔒 No ads, no tracking — your music, your way
 
+## Design
+
+| | |
+|---|---|
+| Background | `#0A0A0E` |
+| Primary accent | Violet `#7C4DFF` |
+| Secondary accent | Cyan `#00E5FF` |
+| Highlight | Magenta `#FF2E9A` |
+
+Logo: an "M" formed from equalizer bars.
+
 ## Installation
 
 1. Go to the [Releases](https://github.com/Cosm1cBug/Melodix/releases) page

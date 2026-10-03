@@ -36,6 +36,8 @@ import androidx.navigation.NavController
 import com.melodix.music.LocalPlayerAwareWindowInsets
 import com.melodix.music.R
 import com.melodix.music.ui.component.IconButton
+import com.melodix.music.ui.component.LocalMenuState
+import com.melodix.music.ui.menu.SpotifyPlaylistMenu
 import com.melodix.music.ui.component.PlaylistListItem
 import com.melodix.music.ui.utils.backToMain
 import com.melodix.music.viewmodels.LibraryPlaylistsViewModel
@@ -44,6 +46,7 @@ import com.melodix.music.viewmodels.LibraryPlaylistsViewModel
 @Composable
 fun YouTubeLibraryScreen(navController: NavController) {
     val viewModel: LibraryPlaylistsViewModel = hiltViewModel()
+    val menuState = LocalMenuState.current
     val playlists by viewModel.allPlaylists.collectAsState()
     val youtubePlaylists = playlists.filter { !it.playlist.isLocal }
 
@@ -87,9 +90,21 @@ fun YouTubeLibraryScreen(navController: NavController) {
                 playlist = playlist,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .combinedClickable {
-                        navController.navigate("local_playlist/${playlist.id}")
-                    },
+                    .combinedClickable(
+                        onClick = { navController.navigate("local_playlist/${playlist.id}") },
+                        onLongClick = {
+                            menuState.show {
+                                SpotifyPlaylistMenu(
+                                    playlist = com.melodix.music.spotify.models.SpotifyPlaylist(
+                                        id = playlist.id,
+                                        name = playlist.playlist.name,
+                                    ),
+                                    onDismiss = menuState::dismiss,
+                                    onPlay = { navController.navigate("local_playlist/${playlist.id}") },
+                                )
+                            }
+                        },
+                    ),
             )
         }
 

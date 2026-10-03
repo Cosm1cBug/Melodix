@@ -10,6 +10,7 @@ package com.melodix.music.ui.screens.playlist
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -105,7 +106,9 @@ import com.melodix.music.spotify.models.SpotifyTrack
 import com.melodix.music.ui.component.DraggableScrollbar
 import com.melodix.music.ui.component.EmptyPlaceholder
 import com.melodix.music.ui.component.IconButton
+import com.melodix.music.ui.component.LocalMenuState
 import com.melodix.music.ui.component.SpotifyTrackListItem
+import com.melodix.music.ui.menu.SpotifyTrackMenu
 import com.melodix.music.ui.theme.PlayerColorExtractor
 import com.melodix.music.ui.utils.backToMain
 import com.melodix.music.ui.utils.resize
@@ -123,6 +126,7 @@ fun SpotifyPlaylistScreen(
 ) {
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current
     val coroutineScope = rememberCoroutineScope()
     val isPlaying by playerConnection?.isPlaying?.collectAsStateWithLifecycle()
@@ -719,7 +723,7 @@ fun SpotifyPlaylistScreen(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = resolvingTrackId == null || trackIsActive) {
+                            .combinedClickable(enabled = resolvingTrackId == null || trackIsActive, onClick = {
                                 if (trackIsActive) {
                                     playerConnection?.player?.togglePlayPause()
                                 } else {
@@ -731,6 +735,17 @@ fun SpotifyPlaylistScreen(
                                     playPlaylist(startIndex = startIndex)
                                 }
                             },
+                            onLongClick = {
+                                menuState.show {
+                                    SpotifyTrackMenu(
+                                        track = track,
+                                        playlistId = playlist?.id,
+                                        onDismiss = menuState::dismiss,
+                                        onChanged = { viewModel.reload() },
+                                    )
+                                }
+                            },
+                        ),
                 )
             }
         }
