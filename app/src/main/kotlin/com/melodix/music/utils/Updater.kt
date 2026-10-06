@@ -247,7 +247,7 @@ object Updater {
         cachedEtag: String?,
     ): ReleasesNetworkResult {
         val response: HttpResponse =
-            client.get("https://api.github.com/repos/Cosm1cBug/melodix/releases?per_page=$perPage") {
+            client.get("https://api.github.com/repos/Cosm1cBug/Melodix/releases?per_page=$perPage") {
                 headers {
                     append("Accept", "application/vnd.github+json")
                     append("User-Agent", "Melodix")
@@ -411,11 +411,11 @@ object Updater {
 
     private suspend fun resolveApkDownloadUrl(tagName: String): String {
         val fallback =
-            "https://github.com/Cosm1cBug/melodix/releases/download/$tagName/$APK_ASSET_NAME"
+            "https://github.com/Cosm1cBug/Melodix/releases/download/$tagName/$APK_ASSET_NAME"
 
         return runCatching {
             val response = client.get(
-                "https://api.github.com/repos/Cosm1cBug/melodix/releases/tags/$tagName"
+                "https://api.github.com/repos/Cosm1cBug/Melodix/releases/tags/$tagName"
             ) {
                 headers {
                     append("Accept", "application/vnd.github+json")
@@ -481,7 +481,7 @@ object Updater {
     suspend fun getCommitHistory(count: Int = 20, branch: String = "master"): Result<List<GitCommit>> =
         runCatching {
             val response =
-                client.get("https://api.github.com/repos/Cosm1cBug/melodix/commits?sha=$branch&per_page=$count") {
+                client.get("https://api.github.com/repos/Cosm1cBug/Melodix/commits?sha=$branch&per_page=$count") {
                     headers {
                         append("Accept", "application/vnd.github+json")
                         append("User-Agent", "Melodix")
@@ -512,7 +512,7 @@ object Updater {
         }
         return when (channel) {
             UpdateChannel.STABLE -> {
-                "https://github.com/Cosm1cBug/melodix/releases/latest/download/$APK_ASSET_NAME"
+                "https://github.com/Cosm1cBug/Melodix/releases/latest"
             }
             UpdateChannel.NIGHTLY -> {
                 cachedNightlyInfo?.apkUrl

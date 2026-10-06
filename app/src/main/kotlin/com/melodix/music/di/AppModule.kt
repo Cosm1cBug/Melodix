@@ -152,6 +152,6 @@ object AppModule {
         databaseProvider: DatabaseProvider,
     ): Cache =
         LazyCache {
-            SimpleCache(context.filesDir.resolve("download"), NoOpCacheEvictor(), databaseProvider)
+            SimpleCache((context.getExternalFilesDir(null) ?: context.filesDir).resolve("download"), NoOpCacheEvictor(), databaseProvider)
         }
 }
