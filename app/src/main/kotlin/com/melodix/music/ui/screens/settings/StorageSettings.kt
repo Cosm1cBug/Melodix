@@ -104,7 +104,7 @@ fun StorageSettings(
     val playerCache = LocalPlayerConnection.current?.service?.playerCache ?: return
     val downloadCache = LocalPlayerConnection.current?.service?.downloadCache ?: return
 
-    val downloadCacheDir = remember { context.filesDir.resolve("download") }
+    val downloadCacheDir = remember { (context.getExternalFilesDir(null) ?: context.filesDir).resolve("download") }
     val playerCacheDir = remember { context.filesDir.resolve("exoplayer") }
 
     val coroutineScope = rememberCoroutineScope()
