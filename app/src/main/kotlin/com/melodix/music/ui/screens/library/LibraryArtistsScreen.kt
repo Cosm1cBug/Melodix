@@ -50,6 +50,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.ui.platform.LocalContext
+import com.melodix.music.innertube.YouTube
+import com.melodix.music.innertube.models.ArtistItem
+import com.melodix.music.playback.SpotifyProfileCache
+import com.melodix.music.spotify.models.SpotifyArtist
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import kotlinx.coroutines.launch
+import com.melodix.music.LocalDatabase
 import com.melodix.music.LocalPlayerAwareWindowInsets
 import com.melodix.music.R
 import com.melodix.music.constants.ArtistFilter
@@ -64,8 +73,12 @@ import com.melodix.music.constants.GridItemSize
 import com.melodix.music.constants.GridItemsSizeKey
 import com.melodix.music.constants.GridThumbnailHeight
 import com.melodix.music.constants.LibraryViewType
+import com.melodix.music.constants.EnableSpotifyKey
+import com.melodix.music.constants.SpotifyAccessTokenKey
 import com.melodix.music.constants.YtmSyncKey
 import com.melodix.music.ui.component.ChipsRow
+import com.melodix.music.ui.component.NavigationTitle
+import com.melodix.music.ui.component.SpotifyArtistSectionRow
 import com.melodix.music.ui.component.EmptyPlaceholder
 import com.melodix.music.ui.component.LibraryArtistGridItem
 import com.melodix.music.ui.component.LibraryArtistListItem
@@ -137,6 +150,34 @@ fun LibraryArtistsScreen(
     val artists by viewModel.allArtists.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val database = LocalDatabase.current
+    val (enableSpotify) = rememberPreference(EnableSpotifyKey, false)
+    val (spotifyToken) = rememberPreference(SpotifyAccessTokenKey, "")
+    val isSpotifyActive = enableSpotify && spotifyToken.isNotEmpty()
+    var spotifyArtists by remember { mutableStateOf<List<SpotifyArtist>>(emptyList()) }
+
+    LaunchedEffect(isSpotifyActive) {
+        spotifyArtists = if (isSpotifyActive) {
+            withContext(Dispatchers.IO) {
+                SpotifyProfileCache.getTopArtists(context, database, limit = 20)
+            }
+        } else {
+            emptyList()
+        }
+    }
+
+    val onSpotifyArtistClick: (SpotifyArtist) -> Unit = { artist ->
+        coroutineScope.launch(Dispatchers.IO) {
+            val ytResult = YouTube.search(artist.name, YouTube.SearchFilter.FILTER_ARTIST).getOrNull()
+            val ytArtist = ytResult?.items?.firstOrNull { it is ArtistItem }
+            if (ytArtist != null) {
+                withContext(Dispatchers.Main) {
+                    navController.navigate("artist/${ytArtist.id}")
+                }
+            }
+        }
+    }
 
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
@@ -238,6 +279,18 @@ fun LibraryArtistsScreen(
                         headerContent()
                     }
 
+                    if (spotifyArtists.isNotEmpty()) {
+                        item(key = "spotify_artists_title", contentType = CONTENT_TYPE_HEADER) {
+                            NavigationTitle(title = stringResource(R.string.spotify_top_artists))
+                        }
+                        item(key = "spotify_artists_row", contentType = CONTENT_TYPE_ARTIST) {
+                            SpotifyArtistSectionRow(
+                                artists = spotifyArtists,
+                                onArtistClick = onSpotifyArtistClick,
+                            )
+                        }
+                    }
+
                     artists.let { artists ->
                         if (artists.isEmpty()) {
                             item {
@@ -288,6 +341,18 @@ fun LibraryArtistsScreen(
                         contentType = CONTENT_TYPE_HEADER,
                     ) {
                         headerContent()
+                    }
+
+                    if (spotifyArtists.isNotEmpty()) {
+                        item(key = "spotify_artists_title", span = { GridItemSpan(maxLineSpan) }) {
+                            NavigationTitle(title = stringResource(R.string.spotify_top_artists))
+                        }
+                        item(key = "spotify_artists_row", span = { GridItemSpan(maxLineSpan) }) {
+                            SpotifyArtistSectionRow(
+                                artists = spotifyArtists,
+                                onArtistClick = onSpotifyArtistClick,
+                            )
+                        }
                     }
 
                     artists.let { artists ->

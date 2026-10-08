@@ -116,6 +116,7 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val spotifyViewModel: SpotifyViewModel = hiltViewModel()
     val useSpotifyHome by spotifyViewModel.useSpotifyHome.collectAsState()
+    val spotifyHomeOnly by spotifyViewModel.spotifyHomeOnly.collectAsState()
     val spotifyHomeSections by spotifyViewModel.homeSections.collectAsState()
     val spotifyDatabase = LocalDatabase.current
     val spotifyMapper = remember { SpotifyYouTubeMapper(spotifyDatabase) }
@@ -380,6 +381,7 @@ fun HomeScreen(
                     }
                 }
 
+                if (!(spotifyHomeOnly && spotifyHomeSections != null)) {
                 quickPicks?.takeIf { it.isNotEmpty() }?.let { picks ->
             /*
                 item {
@@ -526,6 +528,7 @@ fun HomeScreen(
                 item {
                     HomeLoadingShimmer(modifier = Modifier.animateItem())
                 }
+            }
             }
             }
 

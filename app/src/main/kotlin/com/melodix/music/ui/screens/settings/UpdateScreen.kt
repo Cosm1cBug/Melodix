@@ -128,21 +128,12 @@ fun UpdateScreen(
     val uriHandler = LocalUriHandler.current
     val coroutineScope = rememberCoroutineScope()
 
-    var nightlyInstallUrl by remember {
-        mutableStateOf("https://pub-2218e6bbd5b948e1b5d882cf4d92086d.r2.dev/app-universal-release.apk")
-    }
 
     val (enableUpdateNotification, onEnableUpdateNotificationChange) = rememberPreference(
         EnableUpdateNotificationKey, defaultValue = false
     )
-    val (updateChannel, onUpdateChannelChange) = rememberEnumPreference(
-        UpdateChannelKey, defaultValue = UpdateChannel.STABLE
-    )
 
-    var commits by remember { mutableStateOf<List<GitCommit>>(emptyList()) }
-    var isLoadingCommits by remember { mutableStateOf(true) }
     var latestVersion by remember { mutableStateOf<String?>(null) }
-    var isExpanded by remember { mutableStateOf(true) }
 
     var updateCheckState by remember { mutableStateOf<UpdateCheckState>(UpdateCheckState.Idle) }
     var showUpdateBottomSheet by remember { mutableStateOf(false) }
@@ -151,7 +142,6 @@ fun UpdateScreen(
     var downloadProgress by remember { mutableFloatStateOf(0f) }
     var isDownloading by remember { mutableStateOf(false) }
 
-    var showNightlyConfirmDialog by remember { mutableStateOf(false) }
     var showNotifConfirmDialog by remember { mutableStateOf(false) }
     var hasNotificationPermission by remember {
         mutableStateOf(
@@ -230,35 +220,12 @@ fun UpdateScreen(
         )
     }
 
-    if (showNightlyConfirmDialog) {
-        BuildChannelInfoDialog(
-            title = stringResource(R.string.channel_nightly),
-            onConfirm = { showNightlyConfirmDialog = false; onUpdateChannelChange(UpdateChannel.NIGHTLY) },
-            onDismiss = { showNightlyConfirmDialog = false }
-        )
-    }
-
     LaunchedEffect(Unit) {
         coroutineScope.launch {
             Updater.getLatestVersionName().onSuccess { latestVersion = it }
-            Updater.getCommitHistory(30).onSuccess { commits = it }.onFailure { commits = emptyList() }
-            isLoadingCommits = false
         }
     }
 
-    LaunchedEffect(updateChannel) {
-        if (updateChannel == UpdateChannel.NIGHTLY) {
-            coroutineScope.launch {
-                Updater.getLatestReleaseInfo().onSuccess { info ->
-                    nightlyInstallUrl = info.htmlUrl
-                }
-            }
-        } else {
-            nightlyInstallUrl = "https://pub-2218e6bbd5b948e1b5d882cf4d92086d.r2.dev/app-universal-release.apk"
-        }
-    }
-
-    val rotationAngle by animateFloatAsState(if (isExpanded) 180f else 0f, label = "rotation")
 
     Scaffold(
         topBar = {
@@ -380,26 +347,6 @@ fun UpdateScreen(
             }
 
             item {
-                EnumListPreference(
-                    title = { Text(stringResource(R.string.update_channel)) },
-                    icon = { Icon(painterResource(R.drawable.tune), null) },
-                    selectedValue = updateChannel,
-                    valueText = { ch ->
-                        when (ch) {
-                            UpdateChannel.STABLE  -> stringResource(R.string.channel_stable)
-                            UpdateChannel.NIGHTLY -> stringResource(R.string.channel_nightly)
-                        }
-                    },
-                    onValueSelected = { ch ->
-                        if (ch == UpdateChannel.NIGHTLY && updateChannel != UpdateChannel.NIGHTLY)
-                            showNightlyConfirmDialog = true
-                        else
-                            onUpdateChannelChange(ch)
-                    }
-                )
-            }
-
-            item {
                 Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = { navController.navigate("settings/changelog") },
@@ -408,97 +355,6 @@ fun UpdateScreen(
                     Icon(painterResource(R.drawable.update), null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.view_changelog))
-                }
-            }
-
-            item {
-                AnimatedVisibility(visible = updateChannel == UpdateChannel.NIGHTLY) {
-                    val latestHash = commits.firstOrNull()?.sha ?: "—"
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        )
-                    ) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text("Nightly Builds", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                "Latest features and fixes from the development branch. May contain experimental features and occasional bugs",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.height(10.dp))
-                            Text(latestHash, style = MaterialTheme.typography.labelMedium, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.height(14.dp))
-                            Button(onClick = {
-                                pendingUpdateInfo = UpdateInfo(
-                                    tagName = "nightly",
-                                    versionName = latestHash,
-                                    downloadUrl = nightlyInstallUrl,
-                                    releasePageUrl = nightlyInstallUrl,
-                                    releaseNotes = "Nightly Build: $latestHash",
-                                    publishedAt = ""
-                                )
-                                showUpdateBottomSheet = true
-                             }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Install")
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
-                Spacer(Modifier.height(16.dp))
-                PreferenceGroupTitle(title = stringResource(R.string.commit_history))
-            }
-
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth().animateContentSize(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
-                ) {
-                    Column {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { isExpanded = !isExpanded }
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(painterResource(R.drawable.history), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(12.dp))
-                                Text(stringResource(R.string.recent_commits), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
-                            }
-                            Icon(painterResource(R.drawable.expand_more), null, modifier = Modifier.rotate(rotationAngle))
-                        }
-                        AnimatedVisibility(visible = isExpanded) {
-                            Column {
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                                )
-                                if (isLoadingCommits) {
-                                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                        CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (isExpanded && !isLoadingCommits) {
-                items(commits) { commit ->
-                    CommitItem(commit = commit, onClick = { uriHandler.openUri(commit.url) })
                 }
             }
 

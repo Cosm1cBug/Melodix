@@ -96,7 +96,7 @@ class HomeViewModel @Inject constructor(
 
     private val libraryMetadata = combine(
         database.allSongs(),
-        database.allArtistsByPlayTime(),
+        database.artistsBookmarkedByCreateDateAsc(),
         database.playlists(PlaylistSortType.CREATE_DATE, true),
     ) { songs, artists, playlists ->
         val metadataMap = mutableMapOf<String, ItemMetadata>()

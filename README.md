@@ -18,7 +18,8 @@ vibrant accents, Spotify integration and lossless playback support.
 - 🎨 Minimal dark theme with vibrant violet / cyan / magenta accents
 - 🎵 Play music from YouTube Music with a fast, modern player
 - 🟢 **Spotify integration** — log in with your Spotify account and play your
-  playlists, liked songs, top tracks and personalized recommendations
+  playlists, liked songs, top tracks and personalized recommendations;
+  library Artists shows your Spotify top artists; Spotify-only home mode
 - ▶️ **YouTube Music account sync** — log in with Google to sync your YouTube
   playlists and likes into the library, with per-playlist sync selection
 - 💎 **Qobuz lossless engine** — stream AAC 320 / CD / Hi-Res lossless quality

@@ -125,6 +125,7 @@ constructor(
                     ),
                 )
             }
+            if (_spotifyPlaylists.value.isEmpty()) loadAll()
             val playlists = _spotifyPlaylists.value
             if (playlists.isNotEmpty()) {
                 sections.add(
