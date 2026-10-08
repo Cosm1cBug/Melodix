@@ -452,6 +452,13 @@ fun PlayerSettings(
             onClick = { showExternalDownloaderPackageDialog = true },
             isEnabled = externalDownloaderEnabled
         )
+
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.sponsorblock)) },
+            description = stringResource(R.string.sponsorblock_desc),
+            icon = { Icon(painterResource(R.drawable.fast_forward), null) },
+            onClick = { navController.navigate("settings/player/sponsorblock") }
+        )
     }
 
     TopAppBar(

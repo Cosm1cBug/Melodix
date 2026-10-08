@@ -168,6 +168,11 @@ import com.melodix.music.ui.screens.settings.DiscordPresenceManager
 import com.melodix.music.utils.SyncUtils
 import com.melodix.music.utils.YTPlayerUtils
 import com.melodix.music.utils.StreamClientUtils
+import com.melodix.music.constants.SPONSORBLOCK_DEFAULT_CATEGORIES
+import com.melodix.music.constants.SponsorBlockCategoriesKey
+import com.melodix.music.constants.SponsorBlockEnabledKey
+import com.melodix.music.constants.SponsorBlockShowToastKey
+import com.melodix.music.playback.SponsorBlockManager
 import com.melodix.music.utils.dataStore
 import com.melodix.music.utils.enumPreference
 import com.melodix.music.utils.get
@@ -275,6 +280,10 @@ class MusicService :
 
     private var scopeJob = Job()
     private var scope = CoroutineScope(Dispatchers.Main + scopeJob)
+
+    // SponsorBlock: per-track job that fetches skip segments and polls playback
+    // position to seek past them. Cancelled and restarted on every track change.
+    private var sponsorBlockJob: Job? = null
     private var ioScope = CoroutineScope(Dispatchers.IO + scopeJob)
     private val binder = MusicBinder()
     private var hasBoundClients = false
@@ -3583,6 +3592,9 @@ class MusicService :
 
     crossfadeAudio?.onMediaItemTransition(mediaItem, reason)
 
+    // Restart SponsorBlock for the new track (no-op when disabled).
+    startSponsorBlockForCurrentTrack()
+
     // Pre-load lyrics for upcoming songs in queue
     val currentIndex = player.currentMediaItemIndex
     // Convert media items to MediaMetadata for lyrics pre-loading
@@ -4982,6 +4994,7 @@ class MusicService :
 
     override fun onDestroy() {
         super.onDestroy()
+        sponsorBlockJob?.cancel()
         unregisterBluetoothReceiver()
         try {
             scope.launch { stopTogetherInternal() }
@@ -5231,5 +5244,54 @@ class MusicService :
         const val PERSISTENT_PLAYER_STATE_FILE = "persistent_player_state.data"
         const val MAX_CONSECUTIVE_ERR = 5
         const val MIN_PRESENCE_UPDATE_INTERVAL = 20_000L
+    }
+
+    /**
+     * Restarts the SponsorBlock segment-skipper for the currently-playing track.
+     * Failures are silent — SponsorBlock should never disrupt playback.
+     */
+    private fun startSponsorBlockForCurrentTrack() {
+        sponsorBlockJob?.cancel()
+        sponsorBlockJob = null
+
+        val enabled = dataStore.get(SponsorBlockEnabledKey, false)
+        if (!enabled) return
+
+        val rawCategories = dataStore.get(SponsorBlockCategoriesKey, SPONSORBLOCK_DEFAULT_CATEGORIES)
+        val categories = rawCategories.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        if (categories.isEmpty()) return
+
+        val mediaId = player.currentMediaItem?.mediaId ?: return
+
+        val showToast = dataStore.get(SponsorBlockShowToastKey, false)
+
+        sponsorBlockJob = scope.launch {
+            val segments = withContext(Dispatchers.IO) {
+                runCatching { SponsorBlockManager.fetchSegments(mediaId, categories) }
+                    .getOrDefault(emptyList())
+            }
+            if (segments.isEmpty()) return@launch
+            if (player.currentMediaItem?.mediaId != mediaId) return@launch
+
+            while (isActive && player.currentMediaItem?.mediaId == mediaId) {
+                val pos = player.currentPosition
+                segments.forEach { segment ->
+                    if (pos in segment.startMs..(segment.endMs - 200)) {
+                        Timber.tag("SponsorBlock").d(
+                            "SponsorBlock: skipping ${segment.category} ${segment.startMs}..${segment.endMs}ms"
+                        )
+                        player.seekTo(segment.endMs)
+                        if (showToast) {
+                            Toast.makeText(
+                                this@MusicService,
+                                getString(R.string.sponsorblock_segment_skipped, segment.category),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    }
+                }
+                delay(250)
+            }
+        }
     }
 }

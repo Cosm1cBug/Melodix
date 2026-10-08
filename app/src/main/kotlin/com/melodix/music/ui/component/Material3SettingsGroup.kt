@@ -16,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.font.FontWeight
@@ -80,9 +81,10 @@ private fun Material3SettingsItemRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .alpha(if (item.enabled) 1f else 0.5f)
                 .clip(RoundedCornerShape(12.dp))
                 .clickable(
-                    enabled = item.onClick != null,
+                    enabled = item.enabled && item.onClick != null,
                     onClick = { item.onClick?.invoke() }
                 )
                 .padding(horizontal = 20.dp, vertical = 16.dp),
@@ -180,5 +182,6 @@ data class Material3SettingsItem(
     val trailingContent: (@Composable () -> Unit)? = null,
     val showBadge: Boolean = false,
     val isHighlighted: Boolean = false,
+    val enabled: Boolean = true,
     val onClick: (() -> Unit)? = null
 )

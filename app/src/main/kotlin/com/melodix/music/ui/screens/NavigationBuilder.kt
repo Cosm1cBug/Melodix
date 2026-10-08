@@ -80,6 +80,7 @@ import com.melodix.music.ui.screens.settings.AboutScreen
 import com.melodix.music.ui.screens.settings.AccountSettings
 import com.melodix.music.ui.screens.settings.AppearanceSettings
 import com.melodix.music.ui.screens.settings.SpotifySettings
+import com.melodix.music.ui.screens.settings.SponsorBlockSettings
 import com.melodix.music.ui.screens.settings.CustomizeBackground
 import com.melodix.music.ui.screens.settings.BackupAndRestore
 import com.melodix.music.ui.screens.settings.ChangelogScreen
@@ -378,6 +379,10 @@ fun NavGraphBuilder.navigationBuilder(
     composable("settings/player") {
         PlayerSettings(navController, scrollBehavior)
     }
+    composable("settings/player/sponsorblock") {
+        SponsorBlockSettings(navController)
+    }
+
     composable("settings/storage") {
         StorageSettings(navController, scrollBehavior)
     }
