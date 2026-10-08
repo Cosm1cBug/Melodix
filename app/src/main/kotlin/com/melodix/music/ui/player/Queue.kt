@@ -614,6 +614,13 @@ fun Queue(
                         } else {
                             playerConnection.service.onInfiniteQueueDisabled()
                         }
+                    },
+                    onClearUpcomingClick = {
+                        val p = playerConnection.player
+                        val current = p.currentMediaItemIndex
+                        if (p.mediaItemCount > current + 1) {
+                            p.removeMediaItems(current + 1, p.mediaItemCount)
+                        }
                     }
                 )
 

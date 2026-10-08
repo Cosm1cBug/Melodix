@@ -109,6 +109,7 @@ fun CurrentSongHeader(
     onShuffleClick: () -> Unit,
     onLockClick: () -> Unit,
     onInfiniteQueueClick: () -> Unit,
+    onClearUpcomingClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -322,12 +323,31 @@ fun CurrentSongHeader(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        Text(
-            text = stringResource(R.string.queue_continue_playing),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = onBackgroundColor
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.queue_continue_playing),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = onBackgroundColor,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(
+                onClick = onClearUpcomingClick,
+                modifier = Modifier.size(36.dp),
+                colors = IconButtonDefaults.iconButtonColors(
+                    contentColor = onBackgroundColor.copy(alpha = 0.7f)
+                )
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.delete),
+                    contentDescription = stringResource(R.string.clear_queue),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(2.dp))
 
