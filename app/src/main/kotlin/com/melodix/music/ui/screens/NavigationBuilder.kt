@@ -46,6 +46,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.dialog
 import androidx.navigation.navArgument
 import com.melodix.music.R
 import com.melodix.music.constants.DarkModeKey
@@ -80,6 +81,7 @@ import com.melodix.music.ui.screens.settings.AboutScreen
 import com.melodix.music.ui.screens.settings.AccountSettings
 import com.melodix.music.ui.screens.settings.AppearanceSettings
 import com.melodix.music.ui.screens.settings.SpotifySettings
+import com.melodix.music.ui.screens.equalizer.EqScreen
 import com.melodix.music.ui.screens.settings.SponsorBlockSettings
 import com.melodix.music.ui.screens.settings.CustomizeBackground
 import com.melodix.music.ui.screens.settings.BackupAndRestore
@@ -379,6 +381,10 @@ fun NavGraphBuilder.navigationBuilder(
     composable("settings/player") {
         PlayerSettings(navController, scrollBehavior)
     }
+    dialog("equalizer") {
+        EqScreen()
+    }
+
     composable("settings/player/sponsorblock") {
         SponsorBlockSettings(navController)
     }

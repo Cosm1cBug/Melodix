@@ -196,6 +196,14 @@ object Updater {
         }
     }
 
+    /** True only when [latest] is strictly newer than [current] (never offers downgrades). */
+    internal fun isNewerVersion(latest: String, current: String): Boolean {
+        if (latest.isBlank()) return false
+        val a = parseSemVerOrNull(latest)
+        val b = parseSemVerOrNull(current)
+        return if (a != null && b != null) a > b else latest.trim() != current.trim()
+    }
+
     internal fun findLatestRelease(releases: List<ReleaseInfo>): ReleaseInfo? {
         if (releases.isEmpty()) return null
         val parsed =

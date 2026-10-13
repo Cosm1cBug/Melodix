@@ -617,7 +617,7 @@ class MainActivity : ComponentActivity() {
 
             // fetch release notes and show sheet when a new version is detected
             LaunchedEffect(latestVersionName) {
-                if (latestVersionName.isNotBlank() && !Updater.isSameVersion(latestVersionName, BuildConfig.VERSION_NAME)) {
+                if (Updater.isNewerVersion(latestVersionName, BuildConfig.VERSION_NAME)) {
                     Updater.getLatestReleaseNotes().onSuccess {
                         releaseNotesState.value = it
                     }.onFailure {

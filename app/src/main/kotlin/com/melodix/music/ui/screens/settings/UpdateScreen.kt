@@ -89,15 +89,11 @@ import com.melodix.music.BuildConfig
 import com.melodix.music.LocalPlayerAwareWindowInsets
 import com.melodix.music.R
 import com.melodix.music.constants.EnableUpdateNotificationKey
-import com.melodix.music.constants.UpdateChannel
-import com.melodix.music.constants.UpdateChannelKey
-import com.melodix.music.ui.component.EnumListPreference
 import com.melodix.music.ui.component.IconButton
 import com.melodix.music.ui.component.MarkdownText
 import com.melodix.music.ui.component.PreferenceGroupTitle
 import com.melodix.music.ui.component.SwitchPreference
 import com.melodix.music.ui.utils.backToMain
-import com.melodix.music.utils.GitCommit
 import com.melodix.music.utils.UpdateInfo
 import com.melodix.music.utils.UpdateNotificationManager
 import com.melodix.music.utils.Updater
@@ -128,21 +124,11 @@ fun UpdateScreen(
     val uriHandler = LocalUriHandler.current
     val coroutineScope = rememberCoroutineScope()
 
-    var nightlyInstallUrl by remember {
-        mutableStateOf("https://pub-2218e6bbd5b948e1b5d882cf4d92086d.r2.dev/app-universal-release.apk")
-    }
 
     val (enableUpdateNotification, onEnableUpdateNotificationChange) = rememberPreference(
         EnableUpdateNotificationKey, defaultValue = false
     )
-    val (updateChannel, onUpdateChannelChange) = rememberEnumPreference(
-        UpdateChannelKey, defaultValue = UpdateChannel.STABLE
-    )
-
-    var commits by remember { mutableStateOf<List<GitCommit>>(emptyList()) }
-    var isLoadingCommits by remember { mutableStateOf(true) }
     var latestVersion by remember { mutableStateOf<String?>(null) }
-    var isExpanded by remember { mutableStateOf(true) }
 
     var updateCheckState by remember { mutableStateOf<UpdateCheckState>(UpdateCheckState.Idle) }
     var showUpdateBottomSheet by remember { mutableStateOf(false) }
@@ -151,7 +137,6 @@ fun UpdateScreen(
     var downloadProgress by remember { mutableFloatStateOf(0f) }
     var isDownloading by remember { mutableStateOf(false) }
 
-    var showNightlyConfirmDialog by remember { mutableStateOf(false) }
     var showNotifConfirmDialog by remember { mutableStateOf(false) }
     var hasNotificationPermission by remember {
         mutableStateOf(
@@ -230,35 +215,11 @@ fun UpdateScreen(
         )
     }
 
-    if (showNightlyConfirmDialog) {
-        BuildChannelInfoDialog(
-            title = stringResource(R.string.channel_nightly),
-            onConfirm = { showNightlyConfirmDialog = false; onUpdateChannelChange(UpdateChannel.NIGHTLY) },
-            onDismiss = { showNightlyConfirmDialog = false }
-        )
-    }
-
     LaunchedEffect(Unit) {
         coroutineScope.launch {
             Updater.getLatestVersionName().onSuccess { latestVersion = it }
-            Updater.getCommitHistory(30).onSuccess { commits = it }.onFailure { commits = emptyList() }
-            isLoadingCommits = false
         }
     }
-
-    LaunchedEffect(updateChannel) {
-        if (updateChannel == UpdateChannel.NIGHTLY) {
-            coroutineScope.launch {
-                Updater.getLatestReleaseInfo().onSuccess { info ->
-                    nightlyInstallUrl = info.htmlUrl
-                }
-            }
-        } else {
-            nightlyInstallUrl = "https://pub-2218e6bbd5b948e1b5d882cf4d92086d.r2.dev/app-universal-release.apk"
-        }
-    }
-
-    val rotationAngle by animateFloatAsState(if (isExpanded) 180f else 0f, label = "rotation")
 
     Scaffold(
         topBar = {
@@ -380,26 +341,6 @@ fun UpdateScreen(
             }
 
             item {
-                EnumListPreference(
-                    title = { Text(stringResource(R.string.update_channel)) },
-                    icon = { Icon(painterResource(R.drawable.tune), null) },
-                    selectedValue = updateChannel,
-                    valueText = { ch ->
-                        when (ch) {
-                            UpdateChannel.STABLE  -> stringResource(R.string.channel_stable)
-                            UpdateChannel.NIGHTLY -> stringResource(R.string.channel_nightly)
-                        }
-                    },
-                    onValueSelected = { ch ->
-                        if (ch == UpdateChannel.NIGHTLY && updateChannel != UpdateChannel.NIGHTLY)
-                            showNightlyConfirmDialog = true
-                        else
-                            onUpdateChannelChange(ch)
-                    }
-                )
-            }
-
-            item {
                 Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = { navController.navigate("settings/changelog") },
@@ -408,97 +349,6 @@ fun UpdateScreen(
                     Icon(painterResource(R.drawable.update), null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.view_changelog))
-                }
-            }
-
-            item {
-                AnimatedVisibility(visible = updateChannel == UpdateChannel.NIGHTLY) {
-                    val latestHash = commits.firstOrNull()?.sha ?: "—"
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        )
-                    ) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text("Nightly Builds", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                "Latest features and fixes from the development branch. May contain experimental features and occasional bugs",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.height(10.dp))
-                            Text(latestHash, style = MaterialTheme.typography.labelMedium, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.height(14.dp))
-                            Button(onClick = {
-                                pendingUpdateInfo = UpdateInfo(
-                                    tagName = "nightly",
-                                    versionName = latestHash,
-                                    downloadUrl = nightlyInstallUrl,
-                                    releasePageUrl = nightlyInstallUrl,
-                                    releaseNotes = "Nightly Build: $latestHash",
-                                    publishedAt = ""
-                                )
-                                showUpdateBottomSheet = true
-                             }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Install")
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
-                Spacer(Modifier.height(16.dp))
-                PreferenceGroupTitle(title = stringResource(R.string.commit_history))
-            }
-
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth().animateContentSize(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
-                ) {
-                    Column {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { isExpanded = !isExpanded }
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(painterResource(R.drawable.history), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(12.dp))
-                                Text(stringResource(R.string.recent_commits), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
-                            }
-                            Icon(painterResource(R.drawable.expand_more), null, modifier = Modifier.rotate(rotationAngle))
-                        }
-                        AnimatedVisibility(visible = isExpanded) {
-                            Column {
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                                )
-                                if (isLoadingCommits) {
-                                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                        CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (isExpanded && !isLoadingCommits) {
-                items(commits) { commit ->
-                    CommitItem(commit = commit, onClick = { uriHandler.openUri(commit.url) })
                 }
             }
 
@@ -686,6 +536,16 @@ private fun UpdateDetailsBottomSheet(
     }
 }
 
+
+private fun formatCommitDate(isoDate: String): String = try {
+    val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
+    SimpleDateFormat("MMM d", Locale.getDefault()).format(inputFormat.parse(isoDate)!!)
+} catch (e: Exception) {
+    isoDate.take(10)
+}
+
 @Composable
 private fun BuildChannelInfoDialog(
     title: String,
@@ -695,61 +555,11 @@ private fun BuildChannelInfoDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                Text("Melodix provides two download channels for builds:", style = MaterialTheme.typography.bodyMedium)
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("• Stable builds", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Distributed via official GitHub Releases.", style = MaterialTheme.typography.bodySmall)
-                    Text("These versions are tested and recommended for most users.", style = MaterialTheme.typography.bodySmall)
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("• Nightly builds", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Automatically generated development builds hosted via nightly.link.", style = MaterialTheme.typography.bodySmall)
-                    Text("Nightly builds may include experimental features, unfinished changes, or temporary regressions.", style = MaterialTheme.typography.bodySmall)
-                }
-                Text("By continuing, you acknowledge that nightly builds may be unstable and use them at your own risk.", style = MaterialTheme.typography.bodySmall)
-            }
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text(stringResource(R.string.ok)) }
         },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(android.R.string.ok)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) } }
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
     )
-}
-
-@Composable
-private fun CommitItem(commit: GitCommit, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        onClick = onClick
-    ) {
-        Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.Top) {
-            Box(Modifier.padding(top = 4.dp).size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(commit.message, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(commit.sha, style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary)
-                    Text("•", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(commit.author, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (commit.date.isNotEmpty()) {
-                        Text("•", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(formatCommitDate(commit.date), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-            Icon(painterResource(R.drawable.arrow_forward), null, Modifier.padding(start = 8.dp).size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
-        }
-    }
-}
-
-private fun formatCommitDate(isoDate: String): String = try {
-    val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
-    }
-    SimpleDateFormat("MMM d", Locale.getDefault()).format(inputFormat.parse(isoDate)!!)
-} catch (e: Exception) {
-    isoDate.take(10)
 }

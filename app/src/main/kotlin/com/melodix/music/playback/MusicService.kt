@@ -139,6 +139,8 @@ import com.melodix.music.db.entities.SongEntity
 import com.melodix.music.db.entities.ArtistEntity
 import com.melodix.music.db.entities.AlbumEntity
 import com.melodix.music.di.DownloadCache
+import com.melodix.music.eq.EqualizerService
+import com.melodix.music.eq.audio.CustomEqualizerAudioProcessor
 import com.melodix.music.di.PlayerCache
 import com.melodix.music.extensions.SilentHandler
 import com.melodix.music.extensions.collect
@@ -418,6 +420,9 @@ class MusicService :
     @DownloadCache
     lateinit var downloadCache: Cache
 
+    @Inject
+    lateinit var equalizerService: EqualizerService
+
     lateinit var player: ExoPlayer
     private lateinit var mediaSession: MediaLibrarySession
 
@@ -655,7 +660,7 @@ class MusicService :
             ExoPlayer
                 .Builder(this)
                 .setMediaSourceFactory(createMediaSourceFactory())
-                .setRenderersFactory(createRenderersFactory())
+                .setRenderersFactory(createRenderersFactory(newEqProcessor()))
                 .setHandleAudioBecomingNoisy(true)
                 .setWakeMode(C.WAKE_MODE_NETWORK)
                 .setAudioAttributes(
@@ -867,7 +872,7 @@ class MusicService :
                     ExoPlayer
                         .Builder(this)
                         .setMediaSourceFactory(createMediaSourceFactory())
-                        .setRenderersFactory(createRenderersFactory())
+                        .setRenderersFactory(createRenderersFactory(newEqProcessor()))
                         .setHandleAudioBecomingNoisy(false)
                         .setWakeMode(C.WAKE_MODE_NETWORK)
                         .setAudioAttributes(
@@ -4701,7 +4706,10 @@ class MusicService :
         }
     }
 
-    private fun createRenderersFactory() =
+    private fun newEqProcessor() =
+        CustomEqualizerAudioProcessor().also { equalizerService.addAudioProcessor(it) }
+
+    private fun createRenderersFactory(eqProcessor: CustomEqualizerAudioProcessor) =
         object : DefaultRenderersFactory(this) {
             override fun buildAudioSink(
                 context: Context,
@@ -4713,6 +4721,7 @@ class MusicService :
                 .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                 .setAudioProcessorChain(
                     DefaultAudioSink.DefaultAudioProcessorChain(
+                        eqProcessor,
                         SilenceSkippingAudioProcessor(
                             1_500_000L,
                             0.35f,

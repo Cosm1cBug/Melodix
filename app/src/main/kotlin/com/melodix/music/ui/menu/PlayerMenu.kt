@@ -572,6 +572,24 @@ fun ColumnScope.PlayerMenu(
             item { Spacer(modifier = Modifier.height(12.dp)) }
         }
 
+        // ── Equalizer ──
+        item {
+            MenuSurfaceSection(modifier = Modifier.padding(vertical = 6.dp)) {
+                ListItem(
+                    headlineContent = { Text(text = stringResource(R.string.equalizer)) },
+                    leadingContent = {
+                        Icon(painter = painterResource(R.drawable.equalizer), contentDescription = null)
+                    },
+                    modifier = Modifier.clickable {
+                        onDismiss()
+                        navController.navigate("equalizer")
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+            }
+        }
+        item { Spacer(modifier = Modifier.height(12.dp)) }
+
         // ── Descarga ─────────────────────────────────────────────────────────
         // Downloading a copy of a file that's already on-device is meaningless.
         if (!isLocalSong) {

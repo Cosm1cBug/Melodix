@@ -873,4 +873,27 @@ Melodix will only extract your token, and everything else is stored locally.</st
     <string name="sponsorblock_category_music_offtopic">Non-music section</string>
     <string name="sponsorblock_category_filler">Filler tangent</string>
     <string name="sponsorblock_attribution">Segments provided by sponsor.ajay.app</string>
+
+    <string name="equalizer_desc">Open the audio equalizer</string>
+    <string name="equalizer_header">Equalizer</string>
+    <string name="no_profiles">No equalizer profiles</string>
+    <string name="import_profile">Import profile</string>
+    <string name="system_equalizer">System equalizer</string>
+    <string name="eq_disabled">Disabled</string>
+    <string name="delete_profile_desc">Delete profile</string>
+    <string name="delete_profile_confirmation">Are you sure you want to delete %1$s? This action cannot be undone</string>
+    <string name="error_file_read">Could not read file</string>
+    <string name="error_file_open">Failed to open file: %1$s</string>
+    <string name="import_error_title">Import error</string>
+    <string name="error_title">Error</string>
+    <string name="error_eq_apply_failed">Failed to apply equalizer profile: %1$s</string>
+    <plurals name="profiles_count">
+        <item quantity="one">%d profile</item>
+        <item quantity="other">%d profiles</item>
+    </plurals>
+    <plurals name="band_count">
+        <item quantity="one">%d band</item>
+        <item quantity="other">%d bands</item>
+    </plurals>
+    <string name="ok">OK</string>
 </resources>
