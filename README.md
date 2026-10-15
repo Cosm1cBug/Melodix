@@ -1,13 +1,15 @@
 <div align="center">
+<img src="fastlane/metadata/android/en-US/images/icon.png" width="100" height="100" alt="Melodix icon" align="center">
 
-# Melodix
-
-**Feel Every Note**
+# Melodix - **Feel Every Note**
 
 Melodix is an open-source music player for Android with a minimal dark theme,
 vibrant accents, Spotify integration and lossless playback support.
 
 [![License](https://img.shields.io/github/license/Cosm1cBug/Melodix?style=flat-square&color=2B3137&labelColor=161B22)](https://github.com/Cosm1cBug/Melodix/blob/main/LICENSE)
+
+> ⚠️ Melodix is not affiliated with, funded, authorized, endorsed by, or in any
+> way associated with YouTube, Google LLC, Spotify AB or Qobuz.
 
 </div>
 
@@ -34,43 +36,6 @@ vibrant accents, Spotify integration and lossless playback support.
 1. Go to the [Releases](https://github.com/Cosm1cBug/Melodix/releases) page
 2. Download the latest APK
 3. Install and enjoy
-
-## Building from source
-
-Requirements: JDK 21, Android SDK (platform 36).
-
-### Debug (development)
-
-```bash
-git clone https://github.com/Cosm1cBug/Melodix.git
-cd Melodix
-chmod +x gradlew
-./gradlew assembleFossDebug
-```
-
-The APK is generated in `app/build/outputs/apk/universal/debug/`.
-
-### Release (distribution)
-
-Release builds are signed and minified. Create a keystore once, export the
-credentials the build expects, then build:
-
-```bash
-mkdir -p app/keystore
-keytool -genkeypair -v -keystore app/keystore/release.keystore \
-  -alias melodix -keyalg RSA -keysize 2048 -validity 10000
-
-export STORE_PASSWORD=<store password>
-export KEY_ALIAS=melodix
-export KEY_PASSWORD=<key password>
-
-./gradlew assembleUniversalRelease
-```
-
-The APK is generated in `app/build/outputs/apk/universal/release/`.
-
-> **Warning**: never commit `app/keystore/` or your passwords. Losing the
-> keystore means you can never publish an update for installed users again.
 
 ## License
 
