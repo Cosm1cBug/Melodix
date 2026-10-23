@@ -59,6 +59,8 @@ fun PreferredLyricsProvider.displayName(): String = when (this) {
     PreferredLyricsProvider.KUGOU -> "KuGou"
     PreferredLyricsProvider.BETTER_LYRICS -> "BetterLyrics"
     PreferredLyricsProvider.SIMPMUSIC -> "SimpMusic"
+    PreferredLyricsProvider.PAXSENIX -> "Paxsenix"
+    PreferredLyricsProvider.LYRICSPLUS -> "LyricsPlus"
 }
 
 enum class SliderStyle {
@@ -395,6 +397,8 @@ enum class PreferredLyricsProvider {
     KUGOU,
     BETTER_LYRICS,
     SIMPMUSIC,
+    PAXSENIX,
+    LYRICSPLUS,
 }
 
 enum class PlayerButtonsStyle {
@@ -759,3 +763,7 @@ val SPONSORBLOCK_ALL_CATEGORIES = listOf(
     "music_offtopic",
     "filler",
 )
+
+// ── Extra lyrics providers ──────────────────────────────────────────────
+val EnablePaxsenixKey = booleanPreferencesKey("enablePaxsenix")
+val EnableLyricsPlus = booleanPreferencesKey("enableLyricsPlus")

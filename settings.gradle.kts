@@ -31,6 +31,7 @@ rootProject.name = "Melodix"
 include(":app")
 include(":innertube")
 include(":spotify")
+include(":paxsenix")
 include(":kugou")
 include(":lrclib")
 include(":lastfm")

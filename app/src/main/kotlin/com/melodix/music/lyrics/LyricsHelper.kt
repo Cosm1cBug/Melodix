@@ -44,6 +44,8 @@ constructor(
             KuGouLyricsProvider,
             YouTubeSubtitleLyricsProvider,
             YouTubeLyricsProvider,
+            PaxsenixLyricsProvider,
+            LyricsPlusProvider,
         )
 
     private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
@@ -163,6 +165,8 @@ constructor(
         PreferredLyricsProvider.KUGOU -> KuGouLyricsProvider
         PreferredLyricsProvider.BETTER_LYRICS -> BetterLyricsProvider
         PreferredLyricsProvider.SIMPMUSIC -> SimpMusicLyricsProvider
+        PreferredLyricsProvider.PAXSENIX -> PaxsenixLyricsProvider
+        PreferredLyricsProvider.LYRICSPLUS -> LyricsPlusProvider
     }
 
     private suspend fun orderedProviders(): List<LyricsProvider> {

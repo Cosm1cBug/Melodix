@@ -25,9 +25,9 @@ android {
         applicationId = "com.melodix.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.0.8"
-//        versionName = "1.0.8"
+        versionCode = 10
+        versionName = "1.0.9"
+//        versionName = "1.0.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -228,6 +228,7 @@ dependencies {
 
     implementation(project(":innertube"))
     implementation(project(":spotify"))
+    implementation(project(":paxsenix"))
     implementation(project(":kugou"))
     implementation(project(":lrclib"))
     implementation(project(":lastfm"))
@@ -243,6 +244,7 @@ dependencies {
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.cio)
     implementation(libs.ktor.serialization.json)
     implementation(libs.ktor.client.websockets)
     implementation(libs.ktor.server.core)
