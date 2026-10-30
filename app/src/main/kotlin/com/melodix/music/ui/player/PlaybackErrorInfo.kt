@@ -16,6 +16,7 @@ import com.melodix.music.utils.YTPlayerUtils
 internal enum class PlaybackErrorKind {
     LoginRefreshRequired,
     ConfirmationRequired,
+    TrackUnavailable,
     NoInternet,
     Timeout,
     NoStream,
@@ -39,6 +40,7 @@ internal fun PlaybackException.toPlaybackErrorInfo(currentMediaId: String? = nul
         when {
             invalidPlaybackLoginContextUrl != null -> PlaybackErrorKind.LoginRefreshRequired
             loginRecoveryUrl != null -> PlaybackErrorKind.ConfirmationRequired
+            YTPlayerUtils.isTrackUnavailableException(this) -> PlaybackErrorKind.TrackUnavailable
             errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> PlaybackErrorKind.NoInternet
             errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> PlaybackErrorKind.Timeout
             httpCode in setOf(403, 404, 410, 416) -> PlaybackErrorKind.NoStream

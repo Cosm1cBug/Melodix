@@ -3743,6 +3743,12 @@ class MusicService :
 
     val activeMediaId = player.currentMediaItem?.mediaId
     clearStreamRefreshGuards(activeMediaId)
+
+    // A track actually reached playback - clear the error-skip counter so the
+    // runaway protection in skipOnError() only guards against consecutive failures.
+    if (playbackState == Player.STATE_READY && player.isPlaying) {
+        consecutivePlaybackErr = 0
+    }
     if (
         playbackState == Player.STATE_READY &&
         player.playWhenReady &&
@@ -4177,6 +4183,25 @@ class MusicService :
                 player.playWhenReady = true
                 return
             }
+        }
+
+        if (currentMediaId != null && YTPlayerUtils.isTrackUnavailableException(error)) {
+            // YouTube itself reported this video as unplayable (removed / private /
+            // region-locked) on every stream client we tried. Retrying cannot help,
+            // so skip to the next track and tell the user which song was skipped.
+            // skipOnError() keeps its runaway protection (pauses after too many
+            // consecutive errors instead of burning through the whole queue).
+            val skippedTitle = currentSong.value?.song?.title?.takeIf { it.isNotBlank() }
+            Timber.tag("MusicService").w(
+                "Track unavailable on YouTube for $currentMediaId (${skippedTitle ?: "unknown title"}) - skipping to next track"
+            )
+            Toast.makeText(
+                this@MusicService,
+                getString(R.string.skipped_unavailable_song, skippedTitle ?: currentMediaId),
+                Toast.LENGTH_LONG,
+            ).show()
+            skipOnError()
+            return
         }
 
         val shouldAttemptStreamRefresh =

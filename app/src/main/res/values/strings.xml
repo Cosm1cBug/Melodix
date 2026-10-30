@@ -234,6 +234,9 @@
     <string name="error_no_internet">No network connection</string>
     <string name="error_timeout">Timeout</string>
     <string name="error_unknown">Unknown error</string>
+    <string name="playback_track_unavailable">Song unavailable</string>
+    <string name="playback_track_unavailable_desc">YouTube cannot stream this song. It may have been removed, made private, or restricted in your region.</string>
+    <string name="skipped_unavailable_song">Skipped unavailable song: %1$s</string>
     <!-- Player action -->
     <string name="action_like">Like</string>
     <string name="action_like_all">Like all</string>

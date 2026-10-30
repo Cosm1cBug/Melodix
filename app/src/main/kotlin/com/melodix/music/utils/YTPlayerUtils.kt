@@ -704,4 +704,30 @@ object YTPlayerUtils {
         }
         return false
     }
+
+    /**
+     * Reasons YouTube returns in playabilityStatus when a video itself cannot be
+     * streamed at all (deleted, made private, region-locked, ...). Retrying or
+     * refreshing the stream cannot fix these, so they get a dedicated handling path.
+     */
+    private fun isTrackUnavailableReason(reason: String): Boolean {
+        val lower = reason.lowercase(Locale.US)
+        return "video unavailable" in lower ||
+            "video is unavailable" in lower ||
+            "not available in your country" in lower ||
+            "private video" in lower ||
+            "has been removed" in lower ||
+            "no longer available" in lower
+    }
+
+    fun isTrackUnavailableException(error: PlaybackException): Boolean {
+        if (isBotDetectionException(error)) return false
+        if (isTrackUnavailableReason(error.message.orEmpty())) return true
+        var cause: Throwable? = error.cause
+        while (cause != null) {
+            if (isTrackUnavailableReason(cause.message.orEmpty())) return true
+            cause = cause.cause
+        }
+        return false
+    }
 }
