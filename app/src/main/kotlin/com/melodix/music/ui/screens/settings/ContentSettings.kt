@@ -109,6 +109,14 @@ fun ContentSettings(
             key = EnableSimpMusicLyricsKey,
             defaultValue = true
         )
+    val (enablePaxsenix, onEnablePaxsenixChange) = rememberPreference(
+        key = EnablePaxsenixKey,
+        defaultValue = true
+    )
+    val (enableLyricsPlus, onEnableLyricsPlusChange) = rememberPreference(
+        key = EnableLyricsPlus,
+        defaultValue = false
+    )
     val (preferredProvider, onPreferredProviderChange) =
         rememberEnumPreference(
             key = PreferredLyricsProviderKey,
@@ -317,6 +325,18 @@ fun ContentSettings(
             icon = { Icon(painterResource(R.drawable.lyrics), null) },
             checked = enableSimpMusicLyrics,
             onCheckedChange = onEnableSimpMusicLyricsChange,
+        )
+        SwitchPreference(
+            title = { Text(stringResource(R.string.enable_paxsenix)) },
+            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            checked = enablePaxsenix,
+            onCheckedChange = onEnablePaxsenixChange,
+        )
+        SwitchPreference(
+            title = { Text(stringResource(R.string.enable_lyricsplus)) },
+            icon = { Icon(painterResource(R.drawable.lyrics), null) },
+            checked = enableLyricsPlus,
+            onCheckedChange = onEnableLyricsPlusChange,
         )
 
         val savedOrder = remember(providerOrder) {
