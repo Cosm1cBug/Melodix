@@ -153,6 +153,9 @@ import com.melodix.music.extensions.metadata
 import com.melodix.music.extensions.setOffloadEnabled
 import com.melodix.music.extensions.togglePlayPause
 import com.melodix.music.extensions.toMediaItem
+import com.melodix.music.playback.alarm.MusicAlarmScheduler
+import com.melodix.music.playback.alarm.MusicAlarmStore
+import kotlin.random.Random
 import com.melodix.music.extensions.toPersistQueue
 import com.melodix.music.extensions.toQueue
 import com.melodix.music.lyrics.LyricsHelper
@@ -5191,9 +5194,109 @@ class MusicService :
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        handlePlayerWidgetAction(intent?.action)
+        if (intent?.action == ACTION_ALARM_TRIGGER) {
+            handleAlarmTrigger(intent)
+        } else {
+            handlePlayerWidgetAction(intent?.action)
+        }
         super.onStartCommand(intent, flags, startId)
         return START_NOT_STICKY
+    }
+
+    /**
+     * Handles a fired music alarm: re-arms the daily schedule first (so a playback
+     * failure can never stop tomorrow's alarm), validates the stored playlist, then
+     * starts playback - optionally rotating a random song to the front. Invalid or
+     * empty playlists disable the offending alarm entry instead of failing daily.
+     */
+    private fun handleAlarmTrigger(intent: Intent) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                MusicAlarmScheduler.scheduleFromPreferences(this@MusicService)
+            } catch (t: Throwable) {
+                Timber.tag("MusicService").e(t, "Failed to reschedule alarms after trigger")
+            }
+        }
+        val playlistId = intent.getStringExtra(EXTRA_ALARM_PLAYLIST_ID).orEmpty()
+        val alarmId = intent.getStringExtra(EXTRA_ALARM_ID).orEmpty()
+        if (playlistId.isBlank()) {
+            if (alarmId.isNotBlank()) {
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        val alarms = MusicAlarmStore.load(this@MusicService)
+                        val updated =
+                            alarms.map { alarm ->
+                                if (alarm.id == alarmId) alarm.copy(enabled = false, nextTriggerAt = -1L) else alarm
+                            }
+                        MusicAlarmScheduler.scheduleAll(this@MusicService, updated)
+                    } catch (t: Throwable) {
+                        Timber.tag("MusicService").e(t, "Failed to disable alarm with invalid playlist")
+                    }
+                }
+            }
+            return
+        }
+        val randomSong = intent.getBooleanExtra(EXTRA_ALARM_RANDOM_SONG, false)
+        scope.launch {
+            try {
+                val playlistSongs =
+                    withContext(Dispatchers.IO) {
+                        database.playlistSongs(playlistId).first()
+                    }
+                if (playlistSongs.isEmpty()) {
+                    if (alarmId.isNotBlank()) {
+                        withContext(Dispatchers.IO) {
+                            val alarms = MusicAlarmStore.load(this@MusicService)
+                            val updated =
+                                alarms.map { alarm ->
+                                    if (alarm.id == alarmId) alarm.copy(enabled = false, nextTriggerAt = -1L) else alarm
+                                }
+                            MusicAlarmScheduler.scheduleAll(this@MusicService, updated)
+                        }
+                    }
+                    return@launch
+                }
+                val items = playlistSongs.map { it.song.toMediaItem() }
+                val playlistName =
+                    withContext(Dispatchers.IO) {
+                        database
+                            .playlist(playlistId)
+                            .first()
+                            ?.playlist
+                            ?.name
+                    }
+                withContext(Dispatchers.IO) {
+                    MusicAlarmScheduler.scheduleFromPreferences(this@MusicService)
+                }
+
+                val alarmItems =
+                    if (randomSong) {
+                        val firstIndex = Random.nextInt(items.size)
+                        buildList(items.size) {
+                            add(items[firstIndex])
+                            items.forEachIndexed { index, item ->
+                                if (index != firstIndex) add(item)
+                            }
+                        }
+                    } else {
+                        items
+                    }
+
+                player.stop()
+                player.clearMediaItems()
+                playQueue(
+                    com.melodix.music.playback.queues.ListQueue(
+                        title = playlistName,
+                        items = alarmItems,
+                        startIndex = 0,
+                        position = 0L,
+                    ),
+                    playWhenReady = true,
+                )
+            } catch (t: Throwable) {
+                Timber.tag("MusicService").e(t, "Failed to start alarm playback")
+            }
+        }
     }
 
     private fun handlePlayerWidgetAction(action: String?) {
@@ -5270,6 +5373,12 @@ class MusicService :
         const val PLAYLIST = "playlist"
 
         const val CHANNEL_ID = "music_channel_01"
+
+        // Music alarm intents (see playback/alarm/)
+        const val ACTION_ALARM_TRIGGER = "com.melodix.music.action.ALARM_TRIGGER"
+        const val EXTRA_ALARM_ID = "extra_alarm_id"
+        const val EXTRA_ALARM_PLAYLIST_ID = "extra_alarm_playlist_id"
+        const val EXTRA_ALARM_RANDOM_SONG = "extra_alarm_random_song"
         const val NOTIFICATION_ID = 888
         const val ERROR_CODE_NO_STREAM = 1000001
         const val CHUNK_LENGTH = 512 * 1024L

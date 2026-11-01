@@ -459,6 +459,10 @@ fun PlayerSettings(
             icon = { Icon(painterResource(R.drawable.fast_forward), null) },
             onClick = { navController.navigate("settings/player/sponsorblock") }
         )
+
+        AlarmSettingsSection()
+
+        Spacer(modifier = Modifier.height(27.dp))
     }
 
     TopAppBar(

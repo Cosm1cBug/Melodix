@@ -769,3 +769,12 @@ val SPONSORBLOCK_ALL_CATEGORIES = listOf(
 // ── Extra lyrics providers ──────────────────────────────────────────────
 val EnablePaxsenixKey = booleanPreferencesKey("enablePaxsenix")
 val EnableLyricsPlus = booleanPreferencesKey("enableLyricsPlus")
+
+// Music alarm (legacy single-alarm keys kept for migration + multi-alarm entries store)
+val AlarmEnabledKey = booleanPreferencesKey("alarmEnabled")
+val AlarmHourKey = intPreferencesKey("alarmHour")
+val AlarmMinuteKey = intPreferencesKey("alarmMinute")
+val AlarmPlaylistIdKey = stringPreferencesKey("alarmPlaylistId")
+val AlarmRandomSongKey = booleanPreferencesKey("alarmRandomSong")
+val AlarmNextTriggerAtKey = longPreferencesKey("alarmNextTriggerAt")
+val AlarmEntriesKey = stringPreferencesKey("alarmEntries")
