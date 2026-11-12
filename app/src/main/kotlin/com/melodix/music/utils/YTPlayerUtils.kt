@@ -20,6 +20,7 @@ import com.melodix.music.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.melodix.music.innertube.models.response.PlayerResponse
 import com.melodix.music.innertube.models.YouTubeClient.Companion.ANDROID_CREATOR
 import com.melodix.music.innertube.models.YouTubeClient.Companion.ANDROID_MUSIC
+import com.melodix.music.innertube.models.YouTubeClient.Companion.ANDROID_NO_SDK
 import com.melodix.music.innertube.models.YouTubeClient.Companion.ANDROID_TESTSUITE
 import com.melodix.music.innertube.models.YouTubeClient.Companion.ANDROID_UNPLUGGED
 import com.melodix.music.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_43_32
@@ -83,6 +84,7 @@ object YTPlayerUtils {
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
         IOS,
         MOBILE,
+        ANDROID_NO_SDK,
         ANDROID_MUSIC,
         IOS_MUSIC,
         ANDROID_VR_NO_AUTH,

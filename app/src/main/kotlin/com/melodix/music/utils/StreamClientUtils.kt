@@ -181,7 +181,14 @@ object StreamClientUtils {
                     YouTubeClient.ANDROID_VR_1_43_32.clientVersion -> YouTubeClient.ANDROID_VR_1_43_32
                     else -> YouTubeClient.ANDROID_VR_NO_AUTH
                 }
-            clientName.startsWith("ANDROID") -> YouTubeClient.MOBILE
+            clientName.startsWith("ANDROID") ->
+                if (requestedClientVersion == YouTubeClient.ANDROID_NO_SDK.clientVersion &&
+                    requestedClientVersion != YouTubeClient.MOBILE.clientVersion
+                ) {
+                    YouTubeClient.ANDROID_NO_SDK
+                } else {
+                    YouTubeClient.MOBILE
+                }
             clientName.startsWith("VISIONOS") -> YouTubeClient.VISIONOS
             else -> YouTubeClient.ANDROID_VR_NO_AUTH
         }
