@@ -1110,8 +1110,11 @@ class MainActivity : ComponentActivity() {
                             if (!isYearInMusicScreen) {
                                 when (savedMiniPlayerAnchor) {
                                     EXPANDED_ANCHOR -> playerBottomSheetState.expandSoft()
-                                    COLLAPSED_ANCHOR -> playerBottomSheetState.collapseSoft()
-                                    DISMISSED_ANCHOR -> playerBottomSheetState.dismiss()
+                                    // A persisted DISMISSED anchor is in-session state (e.g. the
+                                    // sheet was hidden on the screen the app was last closed from).
+                                    // It must not swallow a freshly restored queue on cold start -
+                                    // always show at least the mini player so the last played song
+                                    // is visible again after a manual close or a crash.
                                     else -> playerBottomSheetState.collapseSoft()
                                 }
                             }

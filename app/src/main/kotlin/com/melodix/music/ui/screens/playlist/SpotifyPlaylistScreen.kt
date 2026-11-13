@@ -295,7 +295,10 @@ fun SpotifyPlaylistScreen(
     }
 
     ExpressivePullToRefreshBox(
-        isRefreshing = state.isLoading,
+        // Show the refresh spinner only when content already exists: on the first
+        // load the list renders its own centered indicator, and driving both from
+        // isLoading made two spinners appear at once.
+        isRefreshing = state.isLoading && tracks.isNotEmpty(),
         onRefresh = viewModel::reload,
         modifier =
             Modifier

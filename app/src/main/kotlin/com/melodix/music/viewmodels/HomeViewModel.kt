@@ -42,6 +42,10 @@ import com.melodix.music.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
@@ -73,6 +77,10 @@ class HomeViewModel @Inject constructor(
     val explorePage = MutableStateFlow<ExplorePage?>(null)
     val selectedChip = MutableStateFlow<HomePage.Chip?>(null)
     private val previousHomePage = MutableStateFlow<HomePage?>(null)
+
+    // Per-chip home page cache: switching chips becomes instant after the first visit.
+    // Cleared on pull-to-refresh so fresh content is always one gesture away.
+    private val chipPageCache = ConcurrentHashMap<String, HomePage>()
 
     val recentActivity = MutableStateFlow<List<YTItem>?>(null)
     val recentPlaylistsDb = MutableStateFlow<List<Playlist>?>(null)
@@ -121,7 +129,7 @@ class HomeViewModel @Inject constructor(
         }
 
         metadataMap
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val allItemsMetadata = combine(
         libraryMetadata,
@@ -135,7 +143,7 @@ class HomeViewModel @Inject constructor(
             metadataMap[id] = current.copy(downloadState = download.state)
         }
         metadataMap
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     // Account display info
     val accountName = MutableStateFlow("Guest")
@@ -212,14 +220,19 @@ class HomeViewModel @Inject constructor(
 
                 launch {
                     YouTube.explore().onSuccess { page ->
-                        val artists: MutableMap<Int, String> = mutableMapOf()
-                        val favouriteArtists: MutableMap<Int, String> = mutableMapOf()
+                        // Rank lookup: one O(n) pass builds id -> rank (favourites carry their
+                        // favourite-index, everyone else their play-time index), then O(1) probes
+                        // per album artist. The previous nested firstOrNull scans were O(n^2) on
+                        // large libraries and delayed the Explore section on every home load.
+                        val rankById = HashMap<String, Int>()
                         database.allArtistsByPlayTime().first().let { list ->
+                            for ((playIndex, artist) in list.withIndex()) {
+                                rankById[artist.id] = playIndex
+                            }
                             var favIndex = 0
-                            for ((artistsIndex, artist) in list.withIndex()) {
-                                artists[artistsIndex] = artist.id
+                            for (artist in list) {
                                 if (artist.artist.bookmarkedAt != null) {
-                                    favouriteArtists[favIndex] = artist.id
+                                    rankById[artist.id] = favIndex
                                     favIndex++
                                 }
                             }
@@ -227,15 +240,10 @@ class HomeViewModel @Inject constructor(
                         explorePage.value = page.copy(
                             newReleaseAlbums = page.newReleaseAlbums
                                 .sortedBy { album ->
-                                    val artistIds = album.artists.orEmpty().mapNotNull { it.id }
-                                    val firstArtistKey = artistIds.firstNotNullOfOrNull { artistId ->
-                                        if (artistId in favouriteArtists.values) {
-                                            favouriteArtists.entries.firstOrNull { it.value == artistId }?.key
-                                        } else {
-                                            artists.entries.firstOrNull { it.value == artistId }?.key
-                                        }
-                                    } ?: Int.MAX_VALUE
-                                    firstArtistKey
+                                    album.artists.orEmpty()
+                                        .mapNotNull { it.id }
+                                        .firstNotNullOfOrNull { rankById[it] }
+                                        ?: Int.MAX_VALUE
                                 }.filterExplicit(hideExplicit)
                         )
                     }.onFailure { reportException(it) }
@@ -259,39 +267,53 @@ class HomeViewModel @Inject constructor(
         val hideVideo = context.dataStore.get(HideVideoKey, false)
         val fromTimeStamp = System.currentTimeMillis() - 86400000 * 7 * 2
         
-        val artistRecommendations = database.mostPlayedArtists(fromTimeStamp, limit = 10).first()
-            .filter { it.artist.isYouTubeArtist }
-            .shuffled().take(3)
-            .mapNotNull {
-                val items = mutableListOf<YTItem>()
-                YouTube.artist(it.id).onSuccess { page ->
-                    items += page.sections.getOrNull(page.sections.size - 2)?.items.orEmpty()
-                    items += page.sections.lastOrNull()?.items.orEmpty()
+        // Fetch recommendation pages concurrently: up to 7 independent network calls
+        // (3 artist pages + 2 x next/related) that previously ran one after another,
+        // delaying the similar-recommendations section by the sum of all latencies.
+        val artistRecommendations = coroutineScope {
+            database.mostPlayedArtists(fromTimeStamp, limit = 10).first()
+                .filter { it.artist.isYouTubeArtist }
+                .shuffled().take(3)
+                .map { artist ->
+                    async {
+                        val items = mutableListOf<YTItem>()
+                        YouTube.artist(artist.id).onSuccess { page ->
+                            items += page.sections.getOrNull(page.sections.size - 2)?.items.orEmpty()
+                            items += page.sections.lastOrNull()?.items.orEmpty()
+                        }
+                        SimilarRecommendation(
+                            title = artist,
+                            items = items.filterExplicit(hideExplicit).filterVideo(hideVideo).shuffled()
+                        ).takeIf { it.items.isNotEmpty() }
+                    }
                 }
-                SimilarRecommendation(
-                    title = it,
-                    items = items.filterExplicit(hideExplicit).filterVideo(hideVideo).shuffled().ifEmpty { return@mapNotNull null }
-                )
-            }
+                .awaitAll()
+                .filterNotNull()
+        }
 
-        val songRecommendations = database.mostPlayedSongs(fromTimeStamp, limit = 10).first()
-            .filter { it.album != null }
-            .shuffled().take(2)
-            .mapNotNull { song ->
-                val endpoint = YouTube.next(WatchEndpoint(videoId = song.id)).getOrNull()?.relatedEndpoint
-                    ?: return@mapNotNull null
-                val page = YouTube.related(endpoint).getOrNull() ?: return@mapNotNull null
-                SimilarRecommendation(
-                    title = song,
-                    items = (page.songs.shuffled().take(8) +
-                            page.albums.shuffled().take(4) +
-                            page.artists.shuffled().take(4) +
-                            page.playlists.shuffled().take(4))
-                        .filterExplicit(hideExplicit).filterVideo(hideVideo)
-                        .shuffled()
-                        .ifEmpty { return@mapNotNull null }
-                )
-            }
+        val songRecommendations = coroutineScope {
+            database.mostPlayedSongs(fromTimeStamp, limit = 10).first()
+                .filter { it.album != null }
+                .shuffled().take(2)
+                .map { song ->
+                    async {
+                        val endpoint = YouTube.next(WatchEndpoint(videoId = song.id)).getOrNull()?.relatedEndpoint
+                            ?: return@async null
+                        val page = YouTube.related(endpoint).getOrNull() ?: return@async null
+                        SimilarRecommendation(
+                            title = song,
+                            items = (page.songs.shuffled().take(8) +
+                                    page.albums.shuffled().take(4) +
+                                    page.artists.shuffled().take(4) +
+                                    page.playlists.shuffled().take(4))
+                                .filterExplicit(hideExplicit).filterVideo(hideVideo)
+                                .shuffled()
+                        ).takeIf { it.items.isNotEmpty() }
+                    }
+                }
+                .awaitAll()
+                .filterNotNull()
+        }
 
         similarRecommendations.value = (artistRecommendations + songRecommendations).shuffled()
     }
@@ -342,16 +364,25 @@ class HomeViewModel @Inject constructor(
         }
 
         viewModelScope.launch(Dispatchers.IO) {
+            val cacheKey = chip.endpoint?.params.orEmpty()
+            chipPageCache[cacheKey]?.let { cached ->
+                homePage.value = cached
+                selectedChip.value = chip
+                return@launch
+            }
+
             val hideExplicit = context.dataStore.get(HideExplicitKey, false)
             val hideVideo = context.dataStore.get(HideVideoKey, false)
             val nextSections = YouTube.home(params = chip?.endpoint?.params).getOrNull() ?: return@launch
 
-            homePage.value = nextSections.copy(
+            val page = nextSections.copy(
                 chips = homePage.value?.chips,
                 sections = nextSections.sections.map { section ->
                     section.copy(items = section.items.filterExplicit(hideExplicit).filterVideo(hideVideo))
                 }
             )
+            chipPageCache[cacheKey] = page
+            homePage.value = page
             selectedChip.value = chip
         }
     }
@@ -360,6 +391,7 @@ class HomeViewModel @Inject constructor(
         if (isRefreshing.value) return
         viewModelScope.launch(Dispatchers.IO) {
             isRefreshing.value = true
+            chipPageCache.clear()
             load()
             isRefreshing.value = false
         }

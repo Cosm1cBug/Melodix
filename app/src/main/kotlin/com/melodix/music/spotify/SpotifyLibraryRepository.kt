@@ -10,6 +10,8 @@ import androidx.datastore.preferences.core.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -194,26 +196,51 @@ constructor(
     suspend fun playlistTracks(playlistId: String): List<SpotifyTrack> =
         withContext(Dispatchers.IO) {
             ensureAuthenticated()
-            val tracks = ArrayList<SpotifyTrack>()
-            var offset = 0
-            val limit = 50
+            val limit = 100
+            val firstPage =
+                spotifyCallWithTokenRetry {
+                    Spotify
+                        .playlistTracks(
+                            playlistId = playlistId,
+                            limit = limit,
+                            offset = 0,
+                        ).getOrThrow()
+                }
+            val tracks = ArrayList<SpotifyTrack>(maxOf(firstPage.total, firstPage.items.size))
+            tracks += firstPage.items.mapNotNull { it.track?.takeUnless(SpotifyTrack::isLocal) }
+            var fetched = firstPage.items.size
 
-            while (true) {
-                val page =
-                    spotifyCallWithTokenRetry {
-                        Spotify
-                            .playlistTracks(
-                                playlistId = playlistId,
-                                limit = limit,
-                                offset = offset,
-                            ).getOrThrow()
+            // Remaining pages are independent requests - fetch them in bounded parallel
+            // batches (4 at a time) instead of serially. Serial 50-per-page round trips
+            // were the dominant cost when opening a large playlist.
+            if (fetched in 1 until firstPage.total) {
+                val offsets = (fetched until firstPage.total step limit).toList()
+                for (batch in offsets.chunked(4)) {
+                    val pages =
+                        batch
+                            .map { offset ->
+                                async {
+                                    spotifyCallWithTokenRetry {
+                                        Spotify
+                                            .playlistTracks(
+                                                playlistId = playlistId,
+                                                limit = limit,
+                                                offset = offset,
+                                            ).getOrThrow()
+                                    }
+                                }
+                            }.awaitAll()
+                    var sawEmptyPage = false
+                    for (page in pages) {
+                        if (page.items.isEmpty()) {
+                            sawEmptyPage = true
+                            break
+                        }
+                        tracks += page.items.mapNotNull { it.track?.takeUnless(SpotifyTrack::isLocal) }
+                        fetched += page.items.size
                     }
-                if (page.items.isEmpty()) break
-                val pageTracks =
-                    page.items.mapNotNull { it.track?.takeUnless(SpotifyTrack::isLocal) }
-                tracks += pageTracks
-                offset += page.items.size
-                if (offset >= page.total || page.items.size < limit) break
+                    if (sawEmptyPage || fetched >= firstPage.total) break
+                }
             }
 
             tracks

@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,8 +47,11 @@ constructor(
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                val playlist = repository.playlist(playlistId)
+                // Playlist header and tracks are independent requests - fetch them
+                // concurrently so the screen waits for the slower one, not the sum.
+                val playlistDeferred = async { repository.playlist(playlistId) }
                 val tracks = repository.playlistTracks(playlistId)
+                val playlist = playlistDeferred.await()
                 _uiState.value =
                     SpotifyPlaylistUiState(
                         playlist = playlist,

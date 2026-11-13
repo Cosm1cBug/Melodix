@@ -316,24 +316,28 @@ constructor(
             }
         }
 
+        // The flat list above is already published - stop the spinner right away.
         // Second call: hierarchical view of the root level (folders + root-only
-        // playlists). Failures here are non-fatal — the flat list above already
-        // succeeded so the screen still has content; the user just won't see
-        // folder grouping until the next sync attempt.
-        Spotify.myLibraryNode(folderUri = null, limit = 50).onSuccess { paging ->
-            val folders = paging.items.filterIsInstance<SpotifyLibraryItem.Folder>().map { it.folder }
-            val rootPlaylists = paging.items.filterIsInstance<SpotifyLibraryItem.Playlist>().map { it.playlist }
-            Timber.d(
-                "SpotifyVM: loadPlaylists() - hierarchy: %d folders, %d root playlists",
-                folders.size, rootPlaylists.size,
-            )
-            _spotifyRootFolders.value = folders
-            _spotifyRootPlaylists.value = rootPlaylists
-        }.onFailure { e ->
-            Timber.w(e, "SpotifyVM: loadPlaylists() - hierarchy fetch failed (non-fatal)")
+        // playlists), fetched in the background. Failures here are non-fatal: the
+        // screen already has content; folder grouping just appears a moment later
+        // (or on the next sync attempt).
+        _playlistsLoading.value = false
+
+        viewModelScope.launch(Dispatchers.IO) {
+            Spotify.myLibraryNode(folderUri = null, limit = 50).onSuccess { paging ->
+                val folders = paging.items.filterIsInstance<SpotifyLibraryItem.Folder>().map { it.folder }
+                val rootPlaylists = paging.items.filterIsInstance<SpotifyLibraryItem.Playlist>().map { it.playlist }
+                Timber.d(
+                    "SpotifyVM: loadPlaylists() - hierarchy: %d folders, %d root playlists",
+                    folders.size, rootPlaylists.size,
+                )
+                _spotifyRootFolders.value = folders
+                _spotifyRootPlaylists.value = rootPlaylists
+            }.onFailure { e ->
+                Timber.w(e, "SpotifyVM: loadPlaylists() - hierarchy fetch failed (non-fatal)")
+            }
         }
 
-        _playlistsLoading.value = false
         return retryAfter
     }
 
